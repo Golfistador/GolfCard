@@ -4,6 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <title>Golf Bresson – Compétition</title>
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 <style>
   :root {
     --green:#1a6b3c;--green-dark:#0f4024;--gold:#c8901a;--gold-light:#f0b429;
@@ -124,7 +127,7 @@
 <header>
   <div class="header-row">
     <div><h1>⛳ Golf de Bresson</h1><p id="headerDate">Départs Jaunes · Par 73</p></div>
-    <button class="reset-btn" onclick="confirmReset()">Nouveau</button>
+    <div style="display:flex;align-items:center;gap:8px"><span id="syncIndicator" style="font-size:11px;font-family:sans-serif;opacity:.8">⏳ Connexion...</span><button class="reset-btn" onclick="confirmReset()">Nouveau</button></div>
   </div>
 </header>
 
@@ -197,11 +200,92 @@ const PLAYERS = [
 ];
 
 let currentHole = 0;
-// Un seul tableau de scores pour Stableford ET Best Ball
-let scores = JSON.parse(localStorage.getItem('golfBresson')||'null') || PLAYERS.map(()=>new Array(18).fill(null));
-let currentDate = localStorage.getItem('golfBressonDate') || new Date().toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+let scores = PLAYERS.map(()=>new Array(18).fill(null));
+let currentDate = new Date().toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+let currentPartyId = null;
+let dbRef = null;
+let isOnline = false;
 
-function save(){localStorage.setItem('golfBresson',JSON.stringify(scores));localStorage.setItem('golfBressonDate',currentDate)}
+// ── FIREBASE ─────────────────────────────────────────────
+const firebaseConfig = {
+  apiKey: "AIzaSyBsEWfkZCaZwLOxXxvyIC70_mBZyddUl6Y",
+  authDomain: "golfcard-9851d.firebaseapp.com",
+  databaseURL: "https://golfcard-9851d-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "golfcard-9851d",
+  storageBucket: "golfcard-9851d.firebasestorage.app",
+  messagingSenderId: "900182179139",
+  appId: "1:900182179139:web:b91cbe16f3e76cfdfbc3f6"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+function setSyncStatus(status){
+  const el=document.getElementById('syncIndicator');
+  if(!el)return;
+  if(status==='ok')el.textContent='🟢 Synchronisé';
+  else if(status==='sync')el.textContent='🔄 Sync...';
+  else if(status==='offline')el.textContent='🔴 Hors ligne';
+  else el.textContent='⏳ Connexion...';
+}
+
+function genPartyId(){
+  // ID basé sur la date du jour — même ID pour tous si même jour
+  const d=new Date();
+  return 'partie_'+d.getFullYear()+'_'+(d.getMonth()+1)+'_'+d.getDate();
+}
+
+function initFirebase(){
+  currentPartyId = genPartyId();
+  dbRef = db.ref('parties/'+currentPartyId);
+
+  // Écouter les changements en temps réel
+  dbRef.on('value', snapshot=>{
+    const data=snapshot.val();
+    if(data){
+      if(data.scores){
+        scores=data.scores;
+        localStorage.setItem('golfBresson',JSON.stringify(scores));
+      }
+      if(data.currentDate) currentDate=data.currentDate;
+      renderSaisie();
+      setSyncStatus('ok');
+      isOnline=true;
+    } else {
+      // Première connexion : on pousse les données locales
+      const local=JSON.parse(localStorage.getItem('golfBresson')||'null');
+      if(local) scores=local;
+      pushToFirebase();
+    }
+    document.getElementById('headerDate').textContent=currentDate+' · Par 73';
+  }, err=>{
+    console.warn('Firebase error:',err);
+    setSyncStatus('offline');
+    isOnline=false;
+    // Fallback localStorage
+    const local=JSON.parse(localStorage.getItem('golfBresson')||'null');
+    if(local) scores=local;
+    renderSaisie();
+  });
+
+  db.ref('.info/connected').on('value', snap=>{
+    setSyncStatus(snap.val()?'ok':'offline');
+    isOnline=!!snap.val();
+  });
+}
+
+function pushToFirebase(){
+  if(!dbRef)return;
+  setSyncStatus('sync');
+  dbRef.set({scores, currentDate, updatedAt: Date.now()})
+    .then(()=>setSyncStatus('ok'))
+    .catch(()=>setSyncStatus('offline'));
+}
+
+function save(){
+  localStorage.setItem('golfBresson',JSON.stringify(scores));
+  localStorage.setItem('golfBressonDate',currentDate);
+  pushToFirebase();
+}
 
 // ── HELPERS ─────────────────────────────────────────────
 function getCR(shots,holeHcp){
@@ -581,16 +665,47 @@ function roundRect(ctx,x,y,w,h,r){
 
 // ── HISTORIQUE ───────────────────────────────────────────
 function sauvegarderPartie(){
-  const {wins,halved}=getBBTotals();
-  const hist=JSON.parse(localStorage.getItem('golfBressonHist')||'[]');
   const ranked=PLAYERS.map((p,i)=>({name:p.name,color:p.color,index:p.index,shots:p.shots,stbl:getTotalStbl(i),gross:getTotalGross(i)})).sort((a,b)=>b.stbl-a.stbl);
   const holesPlayed=scores[0].filter(s=>s!==null).length;
-  hist.unshift({date:currentDate,dateTs:Date.now(),holesPlayed,ranked,scores:JSON.parse(JSON.stringify(scores))});
+  const entry={date:currentDate,dateTs:Date.now(),holesPlayed,ranked,scores:JSON.parse(JSON.stringify(scores))};
+  // Sauvegarder en local
+  const hist=JSON.parse(localStorage.getItem('golfBressonHist')||'[]');
+  hist.unshift(entry);
   localStorage.setItem('golfBressonHist',JSON.stringify(hist.slice(0,20)));
-  alert('✅ Partie sauvegardée !');
+  // Sauvegarder dans Firebase
+  const histRef=db.ref('historique/'+currentPartyId);
+  histRef.set(entry)
+    .then(()=>alert('✅ Partie sauvegardée et synchronisée !'))
+    .catch(()=>alert('✅ Partie sauvegardée localement (hors ligne)'));
 }
 function renderHistorique(){
+  // Charger d'abord depuis Firebase si en ligne
+  if(isOnline){
+    db.ref('historique').orderByChild('dateTs').limitToLast(20).once('value').then(snap=>{
+      const fbHist=[];
+      snap.forEach(child=>fbHist.unshift(child.val()));
+      if(fbHist.length){
+        // Fusionner avec local
+        const local=JSON.parse(localStorage.getItem('golfBressonHist')||'[]');
+        const all=[...fbHist,...local];
+        const seen=new Set();
+        const merged=all.filter(x=>{const k=x.dateTs;if(seen.has(k))return false;seen.add(k);return true;}).sort((a,b)=>b.dateTs-a.dateTs).slice(0,20);
+        localStorage.setItem('golfBressonHist',JSON.stringify(merged));
+        afficherHistorique(merged);
+      } else {
+        const hist=JSON.parse(localStorage.getItem('golfBressonHist')||'[]');
+        afficherHistorique(hist);
+      }
+    }).catch(()=>{
+      const hist=JSON.parse(localStorage.getItem('golfBressonHist')||'[]');
+      afficherHistorique(hist);
+    });
+    return;
+  }
   const hist=JSON.parse(localStorage.getItem('golfBressonHist')||'[]');
+  afficherHistorique(hist);
+}
+function afficherHistorique(hist){
   if(!hist.length){document.getElementById('histContent').innerHTML=`<div class="empty-hist">📋<br><br>Aucune partie sauvegardée.<br><br>Appuyez sur "Sauvegarder" dans l'onglet Fin 🏁</div>`;return;}
   const medals=['🥇','🥈','🥉','4️⃣'];
   let html='';
@@ -640,7 +755,16 @@ function confirmReset(){
   if(confirm('Démarrer une nouvelle partie ?')){
     scores=PLAYERS.map(()=>new Array(18).fill(null));
     currentDate=new Date().toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
-    currentHole=0;save();renderSaisie();
+    currentHole=0;
+    // Nouvelle partie = nouvel ID Firebase avec timestamp
+    if(dbRef) dbRef.off();
+    currentPartyId='partie_'+Date.now();
+    dbRef=db.ref('parties/'+currentPartyId);
+    dbRef.on('value',snapshot=>{
+      const data=snapshot.val();
+      if(data&&data.scores){scores=data.scores;renderSaisie();}
+    });
+    save();renderSaisie();
     showTab('saisie',document.querySelector('.tab'));
   }
 }
@@ -648,6 +772,7 @@ function confirmReset(){
 // Init
 document.getElementById('headerDate').textContent=currentDate+' · Par 73';
 renderSaisie();
+initFirebase();
 </script>
 </body>
 </html>
