@@ -1,0 +1,653 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Golf Bresson – Compétition</title>
+<style>
+  :root {
+    --green:#1a6b3c;--green-dark:#0f4024;--gold:#c8901a;--gold-light:#f0b429;
+    --bg:#f4f7f2;--card:#ffffff;--text:#1a2318;--muted:#5a7060;
+    --border:#cddbc6;--danger:#c0392b;--birdie:#1a5fa6;--eagle:#7b2fa0;--radius:14px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  body{background:var(--bg);font-family:'Georgia',serif;color:var(--text);min-height:100vh}
+  header{background:linear-gradient(135deg,var(--green-dark),var(--green));color:white;
+    padding:14px 16px 10px;position:sticky;top:0;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,.25)}
+  header h1{font-size:21px;font-weight:normal}
+  header p{font-size:12px;opacity:.8;margin-top:2px;font-family:sans-serif}
+  .header-row{display:flex;justify-content:space-between;align-items:center}
+  .tabs{display:flex;background:var(--green-dark)}
+  .tab{flex:1;padding:9px 2px;text-align:center;font-family:sans-serif;font-size:12px;
+    color:rgba(255,255,255,.6);cursor:pointer;border-bottom:3px solid transparent;transition:all .2s}
+  .tab.active{color:var(--gold-light);border-bottom-color:var(--gold-light)}
+  .screen{display:none;padding:12px}.screen.active{display:block}
+
+  /* NAV TROU */
+  .hole-nav{display:flex;align-items:center;justify-content:space-between;
+    background:var(--card);border-radius:var(--radius);padding:10px 14px;
+    margin-bottom:8px;box-shadow:0 1px 4px rgba(0,0,0,.08)}
+  .hole-num{font-size:28px;font-weight:bold;color:var(--green)}
+  .hole-info{text-align:center}
+  .par-dist{font-size:13px;color:var(--muted);font-family:sans-serif}
+  .hole-label{font-size:12px;color:var(--muted);font-family:sans-serif;margin-bottom:2px}
+  .nav-btn{background:var(--green);color:white;border:none;border-radius:10px;
+    width:48px;height:48px;font-size:24px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+  .nav-btn:active{background:var(--green-dark);transform:scale(.95)}
+  .nav-btn:disabled{background:var(--border);color:var(--muted)}
+  .progress-bar{background:var(--border);border-radius:4px;height:5px;margin:6px 0 3px}
+  .progress-fill{background:var(--gold);height:5px;border-radius:4px;transition:width .3s}
+  .progress-label{font-size:11px;color:var(--muted);font-family:sans-serif;text-align:right;margin-bottom:8px}
+
+  /* CARTE JOUEUR */
+  .player-card{background:var(--card);border-radius:var(--radius);padding:12px;
+    margin-bottom:10px;box-shadow:0 1px 4px rgba(0,0,0,.07)}
+  .player-hcp-badge{background:var(--green);color:white;border-radius:20px;
+    padding:2px 9px;font-size:12px;font-family:sans-serif}
+  .cr-badge{background:var(--gold);color:white;border-radius:20px;
+    padding:2px 9px;font-size:12px;font-family:sans-serif}
+  .score-row{display:flex;align-items:center;gap:10px;margin:8px 0 6px}
+  .score-btn{width:60px;height:60px;border-radius:14px;border:none;font-size:34px;
+    font-weight:bold;cursor:pointer;display:flex;align-items:center;justify-content:center}
+  .score-btn.minus{background:#fde8e6;color:var(--danger)}
+  .score-btn.plus{background:#e6f4ec;color:var(--green)}
+  .score-btn:active{transform:scale(.93)}
+  .score-display{flex:1;text-align:center}
+  .score-brut-label{font-size:11px;font-family:sans-serif;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-bottom:1px}
+  .score-num{font-size:52px;font-weight:bold;line-height:1}
+
+  /* RÉSULTATS (2 cases côte à côte) */
+  .results-row{display:flex;gap:8px;margin-top:4px}
+  .res-box{flex:1;border-radius:10px;padding:7px 6px;text-align:center;border:1px solid var(--border);background:var(--bg)}
+  .res-lbl{font-size:10px;font-family:sans-serif;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px}
+  .res-val{font-size:20px;font-weight:bold;font-family:sans-serif;line-height:1.1}
+  .res-sub{font-size:11px;font-family:sans-serif;margin-top:2px}
+
+  /* CLASSEMENT */
+  .player-result{background:var(--card);border-radius:var(--radius);padding:14px 16px;
+    margin-bottom:10px;box-shadow:0 1px 4px rgba(0,0,0,.07)}
+  .scores-mini{display:grid;grid-template-columns:repeat(9,1fr);gap:3px;margin:8px 0}
+  .score-mini-cell{text-align:center;padding:3px 2px;border-radius:5px;font-size:12px;font-family:sans-serif}
+  .score-mini-cell .h{font-size:9px;color:var(--muted)}
+  .mc-eagle{background:#e8d5f5;color:var(--eagle)}
+  .mc-birdie{background:#d5e8f5;color:var(--birdie)}
+  .mc-par{background:#e6f4ec;color:var(--green)}
+  .mc-bogey{background:#fde8e6;color:#c0392b}
+  .mc-double{background:#f5d5d5;color:#8b0000}
+  .mc-empty{background:var(--bg);color:var(--muted)}
+  .totals-row{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+  .tot-pill{background:var(--bg);border-radius:8px;padding:3px 9px;font-size:12px;font-family:sans-serif;color:var(--muted)}
+  .tot-pill span{font-weight:bold;color:var(--text)}
+  .gold-leader{border-left:4px solid var(--gold)}
+
+  /* DÉTAIL */
+  .hole-detail-table{background:var(--card);border-radius:var(--radius);
+    overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.07);margin-bottom:10px}
+  .hdt-header{background:var(--green);color:white;padding:9px 14px;font-size:14px;font-family:sans-serif;display:flex;justify-content:space-between}
+  .hdt-row{display:flex;border-bottom:1px solid var(--bg);padding:8px 14px;align-items:center;justify-content:space-between}
+  .hdt-row:last-child{border-bottom:none}
+  .section-title{font-size:15px;color:var(--muted);font-family:sans-serif;margin:12px 0 6px;padding-left:4px}
+
+  /* FIN / HISTORIQUE */
+  .fin-section{background:var(--card);border-radius:var(--radius);padding:14px;margin-bottom:10px;box-shadow:0 1px 4px rgba(0,0,0,.07)}
+  .fin-title{font-size:13px;font-family:sans-serif;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-bottom:10px}
+  .btn-action{display:flex;align-items:center;gap:10px;width:100%;background:var(--green);color:white;border:none;
+    border-radius:12px;padding:13px 16px;font-family:sans-serif;cursor:pointer;margin-bottom:8px;text-align:left}
+  .btn-action:active{transform:scale(.98);filter:brightness(.9)}
+  .btn-action.blue{background:#1a5fa6}.btn-action.gold{background:var(--gold)}.btn-action.red{background:#c0392b}
+  .btn-action .ico{font-size:22px}.btn-action .lbl{font-size:16px;font-weight:bold}.btn-action .sub{font-size:11px;opacity:.85;margin-top:1px}
+  .hist-card{background:var(--card);border-radius:var(--radius);padding:13px 15px;margin-bottom:9px;box-shadow:0 1px 4px rgba(0,0,0,.07);cursor:pointer}
+  .hist-date{font-size:12px;font-family:sans-serif;color:var(--muted);margin-bottom:5px}
+  .hist-winner{font-size:17px;font-weight:bold;color:var(--green)}
+  .hist-scores{font-size:12px;font-family:sans-serif;color:var(--muted);margin-top:3px}
+  .empty-hist{text-align:center;padding:40px 20px;color:var(--muted);font-family:sans-serif;font-size:15px}
+  #recapCanvas{display:none}
+  .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:200;align-items:center;justify-content:center;padding:20px}
+  .modal-overlay.open{display:flex}
+  .modal-box{background:var(--card);border-radius:var(--radius);padding:20px;width:100%;max-width:380px;max-height:80vh;overflow-y:auto}
+  .modal-close{float:right;background:none;border:none;font-size:22px;color:var(--muted);cursor:pointer;margin-top:-4px}
+  .reset-btn{background:none;border:1px solid rgba(255,255,255,.4);border-radius:10px;
+    padding:5px 11px;font-size:12px;font-family:sans-serif;color:white;cursor:pointer}
+
+  /* BEST BALL RECAP */
+  .bb-recap{background:var(--card);border-radius:var(--radius);padding:12px;margin-top:10px;box-shadow:0 1px 4px rgba(0,0,0,.07)}
+  .bb-row{display:flex;align-items:center;border-bottom:1px solid var(--bg);padding:4px 0}
+  .bb-row:last-child{border-bottom:none}
+  .bb-num{width:26px;font-size:12px;color:var(--muted);font-family:sans-serif;flex-shrink:0}
+  .bb-cell{flex:1;text-align:center;font-size:13px;font-family:sans-serif;padding:2px}
+  .bb-win{background:#e6f4ec;color:var(--green);font-weight:bold;border-radius:5px}
+  .bb-tie{background:#e6f1fb;color:#1a5fa6;border-radius:5px}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-row">
+    <div><h1>⛳ Golf de Bresson</h1><p id="headerDate">Départs Jaunes · Par 73</p></div>
+    <button class="reset-btn" onclick="confirmReset()">Nouveau</button>
+  </div>
+</header>
+
+<div class="tabs">
+  <div class="tab active" onclick="showTab('saisie',this)">Saisie</div>
+  <div class="tab" onclick="showTab('classement',this)">Classement</div>
+  <div class="tab" onclick="showTab('detail',this)">Détail</div>
+  <div class="tab" onclick="showTab('fin',this)">Fin 🏁</div>
+  <div class="tab" onclick="showTab('historique',this)">Historique</div>
+</div>
+
+<!-- SAISIE -->
+<div id="saisie" class="screen active">
+  <div class="hole-nav">
+    <button class="nav-btn" id="prevBtn" onclick="changeHole(-1)">‹</button>
+    <div class="hole-info">
+      <div class="hole-label">Trou</div>
+      <div class="hole-num" id="holeNum">1</div>
+      <div class="par-dist" id="parDist"></div>
+    </div>
+    <button class="nav-btn" id="nextBtn" onclick="changeHole(1)">›</button>
+  </div>
+  <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:5.5%"></div></div>
+  <div class="progress-label" id="progressLabel">1 / 18</div>
+  <div id="playerCards"></div>
+</div>
+
+<!-- CLASSEMENT -->
+<div id="classement" class="screen"><div id="leaderboard"></div></div>
+
+<!-- DÉTAIL -->
+<div id="detail" class="screen"><div id="detailContent"></div></div>
+
+<!-- FIN -->
+<div id="fin" class="screen">
+  <div id="finPodium"></div>
+  <div class="fin-section">
+    <div class="fin-title">Actions</div>
+    <button class="btn-action" onclick="genererPhoto()"><span class="ico">📸</span><div><div class="lbl">Photo récap</div><div class="sub">Télécharge l'image des scores</div></div></button>
+    <button class="btn-action blue" onclick="partagerSMS()"><span class="ico">💬</span><div><div class="lbl">Partager par SMS</div><div class="sub">Envoie le résumé en message</div></div></button>
+    <button class="btn-action blue" onclick="partagerWhatsApp()"><span class="ico">📱</span><div><div class="lbl">Partager sur WhatsApp</div></div></button>
+    <button class="btn-action gold" onclick="sauvegarderPartie()"><span class="ico">💾</span><div><div class="lbl">Sauvegarder la partie</div><div class="sub">Ajoute à l'historique</div></div></button>
+  </div>
+  <canvas id="recapCanvas"></canvas>
+</div>
+
+<!-- HISTORIQUE -->
+<div id="historique" class="screen"><div id="histContent"></div></div>
+
+<!-- Modal -->
+<div class="modal-overlay" id="histModal">
+  <div class="modal-box">
+    <button class="modal-close" onclick="closeModal()">✕</button>
+    <div style="font-size:17px;font-weight:bold;margin-bottom:14px" id="histModalTitle"></div>
+    <div id="histModalContent"></div>
+  </div>
+</div>
+
+<script>
+const HOLES = {
+  par:  [4,5,3,4,4,4,5,3,5,4,3,4,5,4,3,5,4,4],
+  hcp:  [6,4,18,16,2,8,14,12,10,13,15,7,11,1,9,17,5,3],
+  dist: [328,431,120,307,365,235,390,123,408,277,149,300,438,388,145,414,280,412]
+};
+const PLAYERS = [
+  {name:'Philippe',index:19.5,shots:19,color:'#1a6b3c'},
+  {name:'Guillaume',index:23.3,shots:23,color:'#1a5fa6'},
+  {name:'Raphaël',index:25.6,shots:26,color:'#7b2fa0'},
+  {name:'Loïc',index:27.8,shots:28,color:'#c8901a'}
+];
+
+let currentHole = 0;
+// Un seul tableau de scores pour Stableford ET Best Ball
+let scores = JSON.parse(localStorage.getItem('golfBresson')||'null') || PLAYERS.map(()=>new Array(18).fill(null));
+let currentDate = localStorage.getItem('golfBressonDate') || new Date().toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+
+function save(){localStorage.setItem('golfBresson',JSON.stringify(scores));localStorage.setItem('golfBressonDate',currentDate)}
+
+// ── HELPERS ─────────────────────────────────────────────
+function getCR(shots,holeHcp){
+  return Math.floor(shots/18)+(holeHcp<=(shots%18)?1:0);
+}
+function getStbl(gross,par,cr){
+  if(gross===null)return null;
+  const net=gross-par-cr;
+  if(net<=-2)return 4; if(net===-1)return 3; if(net===0)return 2; if(net===1)return 1; return 0;
+}
+function mcClass(gross,par,cr){
+  if(gross===null)return'mc-empty';
+  const net=gross-par-cr;
+  if(net<=-2)return'mc-eagle'; if(net===-1)return'mc-birdie'; if(net===0)return'mc-par'; if(net===1)return'mc-bogey'; return'mc-double';
+}
+function stblLabel(stbl){
+  if(stbl===null)return{txt:'non saisi',color:'var(--muted)'};
+  const labels=['Double+','Bogey','Par net','Birdie','Eagle !'];
+  const colors=['#8b0000','#c0392b','#1a6b3c','#1a5fa6','#7b2fa0'];
+  const i=Math.min(stbl,4);
+  return{txt:labels[i],color:colors[i]};
+}
+function stblBg(stbl){
+  if(stbl===null)return'var(--bg)';
+  const bgs=['#f5d5d5','#fde8e6','#e6f4ec','#d5e8f5','#e8d5f5'];
+  return bgs[Math.min(stbl,4)];
+}
+
+// ── BEST BALL ────────────────────────────────────────────
+function getBBWinner(h){
+  // Retourne idx gagnant, -2 si ex-aequo, null si pas tous saisis
+  const nets=PLAYERS.map((p,i)=>{
+    const g=scores[i][h];
+    return g!==null?g-getCR(p.shots,HOLES.hcp[h]):null;
+  });
+  if(nets.some(n=>n===null))return null;
+  const best=Math.min(...nets);
+  const winners=nets.reduce((a,n,i)=>n===best?[...a,i]:a,[]);
+  return winners.length>1?-2:winners[0];
+}
+function getBBPartial(h){
+  const nets=PLAYERS.map((p,i)=>{
+    const g=scores[i][h];
+    return g!==null?{n:g-getCR(p.shots,HOLES.hcp[h]),i}:null;
+  }).filter(Boolean);
+  if(!nets.length)return null;
+  const best=Math.min(...nets.map(x=>x.n));
+  return{best,winners:nets.filter(x=>x.n===best).map(x=>x.i),allIn:nets.length===PLAYERS.length};
+}
+function getBBTotals(){
+  const wins=new Array(4).fill(0); let halved=0;
+  for(let h=0;h<18;h++){const w=getBBWinner(h);if(w===null)continue;if(w===-2)halved++;else wins[w]++;}
+  return{wins,halved};
+}
+
+// ── SAISIE ───────────────────────────────────────────────
+function renderSaisie(){
+  const h=currentHole;
+  document.getElementById('holeNum').textContent=h+1;
+  document.getElementById('parDist').textContent='Par '+HOLES.par[h]+' · '+HOLES.dist[h]+' m · Hcp '+HOLES.hcp[h];
+  document.getElementById('prevBtn').disabled=h===0;
+  document.getElementById('nextBtn').disabled=h===17;
+  document.getElementById('progressFill').style.width=((h+1)/18*100)+'%';
+  document.getElementById('progressLabel').textContent=(h+1)+' / 18';
+
+  const medals=['🥇','🥈','🥉','4️⃣'];
+
+  // Ordre stableford pour médailles trou
+  const holeRanked=[...PLAYERS.map((p,i)=>({i,stbl:getStbl(scores[i][h],HOLES.par[h],getCR(p.shots,HOLES.hcp[h])),gross:scores[i][h]}))].filter(x=>x.gross!==null).sort((a,b)=>b.stbl-a.stbl||a.gross-b.gross);
+  const stblRankMap={};holeRanked.forEach((x,r)=>stblRankMap[x.i]=r);
+
+  let html='';
+  PLAYERS.forEach((p,i)=>{
+    const cr=getCR(p.shots,HOLES.hcp[h]);
+    const gross=scores[i][h];
+    const stbl=getStbl(gross,HOLES.par[h],cr);
+    const sl=stblLabel(stbl);
+    const sb=stblBg(stbl);
+    const brutStr=gross!==null?(gross-HOLES.par[h]>0?'+'+(gross-HOLES.par[h]):gross-HOLES.par[h]===0?'Par':''+(gross-HOLES.par[h])):'';
+
+    const net=gross!==null?gross-cr:null;
+
+    const medal=stblRankMap[i]!==undefined?medals[stblRankMap[i]]:'';
+
+    html+=`<div class="player-card" style="border-left:4px solid ${p.color}">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap">
+          ${medal?`<span style="font-size:24px">${medal}</span>`:''}
+          <div>
+            <div style="font-size:19px;font-weight:bold;color:${p.color}">${p.name}</div>
+            <div style="display:flex;gap:4px;margin-top:3px;flex-wrap:wrap">
+              <span class="player-hcp-badge" style="background:${p.color}">idx ${p.index}</span>
+              ${cr>0?`<span class="cr-badge">+${cr} rendu${cr>1?'s':''}</span>`:''}
+
+            </div>
+          </div>
+        </div>
+        <div style="background:#e6f4ec;border-radius:10px;padding:4px 12px;text-align:center;flex-shrink:0">
+          <div style="font-size:10px;font-family:sans-serif;color:var(--muted);text-transform:uppercase">Par</div>
+          <div style="font-size:22px;font-weight:bold;color:var(--green);line-height:1.1">${HOLES.par[h]}</div>
+        </div>
+      </div>
+      <div class="score-row">
+        <button class="score-btn minus" onclick="adjustScore(${i},${h},-1)">−</button>
+        <div class="score-display">
+          <div class="score-brut-label">Score brut</div>
+          <div class="score-num" style="color:${p.color}">${gross!==null?gross:'—'}</div>
+          <div style="font-size:13px;font-family:sans-serif;color:var(--muted);margin-top:1px">${brutStr}</div>
+        </div>
+        <button class="score-btn plus" onclick="adjustScore(${i},${h},1)">+</button>
+      </div>
+      <div class="results-row">
+        <div class="res-box" style="background:${sb};border-color:${sb}">
+          <div class="res-lbl">Stableford</div>
+          <div class="res-val" style="color:${sl.color}">${stbl!==null?stbl+' pt'+(stbl>1?'s':''):'—'}</div>
+          <div class="res-sub" style="color:${sl.color}">${sl.txt}</div>
+        </div>
+
+      </div>
+    </div>`;
+  });
+  document.getElementById('playerCards').innerHTML=html;
+}
+
+function getBBCumul(upToHole) {
+  // Cumul des trous gagnés jusqu'au trou upToHole inclus
+  const wins=new Array(4).fill(0); let halved=0;
+  for(let hh=0;hh<=upToHole;hh++){
+    const w=getBBWinner(hh);
+    if(w===null)continue;
+    if(w===-2)halved++;else wins[w]++;
+  }
+  return{wins,halved};
+}
+
+function renderBBRecap(h){
+  const partial=getBBPartial(h);
+  const winner=partial&&partial.allIn?getBBWinner(h):null;
+  const {wins:totalWins,halved:totalHalved}=getBBTotals();
+
+  let html=`<div style="font-size:12px;font-family:sans-serif;color:var(--muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:.6px">Best Ball — cumul trous 1 à ${h+1}</div>`;
+
+  // En-tête colonnes
+  html+=`<div style="display:flex;align-items:center;gap:4px;margin-bottom:4px">
+    <div style="width:26px"></div>`;
+  PLAYERS.forEach(p=>{html+=`<div style="flex:1;text-align:center;font-size:12px;font-weight:bold;color:${p.color};font-family:sans-serif">${p.name.slice(0,4)}</div>`;});
+  html+=`<div style="width:50px;text-align:center;font-size:12px;color:var(--muted);font-family:sans-serif">🏆</div></div>`;
+
+  // Une ligne par trou joué jusqu'au trou courant
+  for(let hh=0;hh<=h;hh++){
+    const anyPlayed=scores.some(s=>s[hh]!==null);
+    if(!anyPlayed)continue;
+    const hPartial=getBBPartial(hh);
+    const hWinner=hPartial&&hPartial.allIn?getBBWinner(hh):null;
+    const {wins:cumWins}=getBBCumul(hh);
+
+    html+=`<div class="bb-row" style="${hh===h?'background:#f0f7f3;border-radius:8px;':''}">
+      <div class="bb-num" style="font-weight:${hh===h?'bold':'normal'};color:${hh===h?'var(--green)':'var(--muted)'}">${hh+1}</div>`;
+
+    PLAYERS.forEach((p,i)=>{
+      const cr=getCR(p.shots,HOLES.hcp[hh]);
+      const g=scores[i][hh];
+      const net=g!==null?g-cr:null;
+      const isW=hWinner===i||(hWinner===-2&&hPartial&&hPartial.winners.includes(i));
+      const isLead=hPartial&&!hPartial.allIn&&hPartial.winners.includes(i)&&hPartial.winners.length===1;
+      html+=`<div class="bb-cell ${isW?'bb-win':isLead?'bb-tie':''}">
+        ${g!==null?`${net}<span style="font-size:9px;display:block;color:var(--muted)">brut ${g}</span>`:'·'}
+      </div>`;
+    });
+
+    // Gagnant du trou + cumul
+    let wLabel='·';
+    if(hWinner!==null)wLabel=hWinner===-2?'🤝':`<span style="color:${PLAYERS[hWinner].color};font-weight:bold">${PLAYERS[hWinner].name.slice(0,3)}</span>`;
+    else if(hPartial)wLabel=`<span style="color:var(--gold)">…</span>`;
+
+    // Cumul sous le gagnant
+    const cumulStr=cumWins.map((w,i)=>w>0?`<span style="color:${PLAYERS[i].color};font-size:10px">${PLAYERS[i].name.slice(0,3)}:${w}</span>`:'').filter(Boolean).join(' ');
+    html+=`<div style="width:50px;text-align:center;font-size:13px;font-family:sans-serif">${wLabel}<div style="font-size:9px;line-height:1.3;margin-top:1px">${cumulStr}</div></div></div>`;
+  }
+
+  // Ligne total général
+  html+=`<div class="bb-row" style="margin-top:6px;background:var(--bg);border-radius:8px;padding:5px 0">
+    <div class="bb-num" style="font-size:11px;font-weight:bold;color:var(--muted)">Tot</div>`;
+  PLAYERS.forEach((p,i)=>{
+    const isBest=totalWins[i]===Math.max(...totalWins)&&totalWins[i]>0;
+    html+=`<div class="bb-cell" style="font-weight:bold;color:${p.color};font-size:${isBest?'17':'14'}px">${totalWins[i]}${isBest?' 🏆':''}</div>`;
+  });
+  html+=`<div style="width:50px;text-align:center;font-size:12px;color:var(--muted);font-family:sans-serif">${totalHalved>0?totalHalved+'🤝':''}</div></div>`;
+
+  document.getElementById('bbRecap').innerHTML=html;
+}
+
+function adjustScore(pi,h,delta){
+  const cur=scores[pi][h];
+  if(cur===null){scores[pi][h]=HOLES.par[h];}
+  else{scores[pi][h]=Math.max(0,Math.min(HOLES.par[h]+6,cur+delta));}
+  save();renderSaisie();
+}
+function changeHole(dir){
+  currentHole=Math.max(0,Math.min(17,currentHole+dir));
+  renderSaisie();
+}
+
+// ── CLASSEMENT ───────────────────────────────────────────
+function getTotalStbl(pi){
+  let t=0;
+  for(let h=0;h<18;h++){const s=getStbl(scores[pi][h],HOLES.par[h],getCR(PLAYERS[pi].shots,HOLES.hcp[h]));if(s!==null)t+=s;}
+  return t;
+}
+function getTotalGross(pi){
+  let t=0,c=0;
+  for(let h=0;h<18;h++){if(scores[pi][h]!==null){t+=scores[pi][h];c++;}}
+  return c>0?t:null;
+}
+function getHalfStbl(pi,from,to){
+  let t=0;
+  for(let h=from;h<to;h++){const s=getStbl(scores[pi][h],HOLES.par[h],getCR(PLAYERS[pi].shots,HOLES.hcp[h]));if(s!==null)t+=s;}
+  return t+' pts';
+}
+
+function renderClassement(){
+  const {wins,halved}=getBBTotals();
+  const ranked=PLAYERS.map((p,i)=>({p,i,stbl:getTotalStbl(i),gross:getTotalGross(i)})).sort((a,b)=>b.stbl-a.stbl);
+  const medals=['🥇','🥈','🥉','4️⃣'];
+  let html='';
+  ranked.forEach((r,rank)=>{
+    const miniCells=scores[r.i].map((g,h)=>{
+      const cr=getCR(r.p.shots,HOLES.hcp[h]);
+      const cls=mcClass(g,HOLES.par[h],cr);
+      const stbl=getStbl(g,HOLES.par[h],cr);
+      return`<div class="score-mini-cell ${cls}"><div class="h">${h+1}</div><div style="font-weight:bold">${g!==null?g:'·'}</div><div class="h">${stbl!==null?stbl+'p':''}</div></div>`;
+    }).join('');
+    const holesPlayed=scores[r.i].filter(s=>s!==null).length;
+    html+=`<div class="player-result ${rank===0?'gold-leader':''}">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <div style="display:flex;align-items:center;gap:10px">
+          <div style="font-size:22px">${medals[rank]}</div>
+          <div>
+            <div style="font-size:19px;font-weight:bold;color:${r.p.color}">${r.p.name}</div>
+            <div style="font-size:12px;font-family:sans-serif;color:var(--muted)">Index ${r.p.index} · Hcp ${r.p.shots}</div>
+          </div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:26px;font-weight:bold;color:var(--green)">${r.stbl} pts</div>
+          <div style="font-size:12px;font-family:sans-serif;color:var(--muted)">${holesPlayed}/18</div>
+        </div>
+      </div>
+      <div class="scores-mini">${miniCells}</div>
+      <div class="totals-row">
+        <div class="tot-pill">Brut : <span>${r.gross!==null?r.gross:'—'}</span></div>
+        <div class="tot-pill">Aller : <span>${getHalfStbl(r.i,0,9)}</span></div>
+        <div class="tot-pill">Retour : <span>${getHalfStbl(r.i,9,18)}</span></div>
+        
+      </div>
+    </div>`;
+  });
+  document.getElementById('leaderboard').innerHTML=html;
+}
+
+// ── DÉTAIL ───────────────────────────────────────────────
+function renderDetail(){
+  let html='';
+  ['Aller (1-9)','Retour (10-18)'].forEach((label,half)=>{
+    html+=`<div class="section-title">${label}</div>`;
+    const start=half*9,end=start+9;
+    for(let h=start;h<end;h++){
+      if(!PLAYERS.some((_,i)=>scores[i][h]!==null))continue;
+      const bbW=getBBWinner(h);
+      html+=`<div class="hole-detail-table"><div class="hdt-header"><span>Trou ${h+1}</span><span>Par ${HOLES.par[h]} · ${HOLES.dist[h]}m · Hcp ${HOLES.hcp[h]}</span></div>`;
+      PLAYERS.forEach((p,i)=>{
+        const g=scores[i][h];if(g===null)return;
+        const cr=getCR(p.shots,HOLES.hcp[h]);
+        const stbl=getStbl(g,HOLES.par[h],cr);
+        const net=g-cr;
+        const isBB=bbW===i||(bbW===-2);
+        html+=`<div class="hdt-row">
+          <div style="font-size:15px;font-weight:bold;color:${p.color}">${p.name}${isBB?' 🏆':''}</div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <div style="text-align:center"><div style="font-size:10px;font-family:sans-serif;color:var(--muted)">BRUT</div><div style="font-size:17px;font-weight:bold">${g}</div></div>
+            <div style="color:var(--muted)">→</div>
+            <div style="text-align:center"><div style="font-size:10px;font-family:sans-serif;color:var(--muted)">NET</div><div style="font-size:17px;font-weight:bold;color:var(--green)">${net}</div></div>
+            <div style="background:var(--green);color:white;border-radius:8px;padding:4px 10px;text-align:center;font-family:sans-serif">
+              <div style="font-size:9px;opacity:.8">STBL</div><div style="font-size:14px;font-weight:bold">${stbl} pts</div>
+            </div>
+          </div>
+        </div>`;
+      });
+      html+=`</div>`;
+    }
+  });
+  if(!html)html='<p style="padding:20px;color:var(--muted);font-family:sans-serif;text-align:center">Aucun score saisi</p>';
+  document.getElementById('detailContent').innerHTML=html;
+}
+
+// ── FIN ──────────────────────────────────────────────────
+function renderFin(){
+  const {wins,halved}=getBBTotals();
+  const ranked=PLAYERS.map((p,i)=>({p,i,stbl:getTotalStbl(i),gross:getTotalGross(i)})).sort((a,b)=>b.stbl-a.stbl);
+  const medals=['🥇','🥈','🥉','4️⃣'];
+  const holesPlayed=scores[0].filter(s=>s!==null).length;
+  let html=`<div style="background:var(--card);border-radius:var(--radius);padding:18px;margin-bottom:12px;box-shadow:0 1px 4px rgba(0,0,0,.07);text-align:center">
+    <div style="font-size:12px;font-family:sans-serif;color:var(--muted);margin-bottom:4px">${currentDate}</div>
+    <div style="font-size:13px;font-family:sans-serif;color:var(--muted);margin-bottom:14px">${holesPlayed}/18 trous joués</div>`;
+  ranked.forEach((r,rank)=>{
+    const isFirst=rank===0;
+    html+=`<div style="display:flex;align-items:center;justify-content:space-between;padding:11px 0;border-bottom:${rank<ranked.length-1?'1px solid var(--bg)':'none'}">
+      <div style="display:flex;align-items:center;gap:10px">
+        <span style="font-size:${isFirst?'34':'24'}px">${medals[rank]}</span>
+        <div style="text-align:left">
+          <div style="font-size:${isFirst?'21':'17'}px;font-weight:bold;color:${r.p.color}">${r.p.name}</div>
+          <div style="font-size:11px;font-family:sans-serif;color:var(--muted)">Hcp ${r.p.shots}</div>
+        </div>
+      </div>
+      <div style="text-align:right">
+        <div style="font-size:${isFirst?'30':'22'}px;font-weight:bold;color:var(--green)">${r.stbl} pts</div>
+        <div style="font-size:11px;font-family:sans-serif;color:var(--muted)">brut ${r.gross!==null?r.gross:'—'}</div>
+      </div>
+    </div>`;
+  });
+  html+=`</div>`;
+  document.getElementById('finPodium').innerHTML=html;
+}
+
+function buildShareText(){
+  const {wins}=getBBTotals();
+  const ranked=PLAYERS.map((p,i)=>({p,i,stbl:getTotalStbl(i),gross:getTotalGross(i)})).sort((a,b)=>b.stbl-a.stbl);
+  const medals=['🥇','🥈','🥉','4️⃣'];
+  const hp=scores[0].filter(s=>s!==null).length;
+  let txt=`⛳ Golf de Bresson — ${currentDate}\nDéparts Jaunes · Stableford + Best Ball · ${hp}/18 trous\n\n`;
+  ranked.forEach((r,rank)=>{txt+=`${medals[rank]} ${r.p.name} : ${r.stbl} pts stbl BB\n`;});
+  txt+=`\n🏌️ Bonne partie !`;
+  return txt;
+}
+function partagerSMS(){window.location.href='sms:?body='+encodeURIComponent(buildShareText())}
+function partagerWhatsApp(){window.open('https://wa.me/?text='+encodeURIComponent(buildShareText()),'_blank')}
+
+function genererPhoto(){
+  const {wins}=getBBTotals();
+  const ranked=PLAYERS.map((p,i)=>({p,i,stbl:getTotalStbl(i),gross:getTotalGross(i)})).sort((a,b)=>b.stbl-a.stbl);
+  const medals=['🥇','🥈','🥉','4️⃣'];
+  const hp=scores[0].filter(s=>s!==null).length;
+  const canvas=document.getElementById('recapCanvas');
+  const W=600,H=100+ranked.length*80+40;
+  canvas.width=W;canvas.height=H;
+  const ctx=canvas.getContext('2d');
+  ctx.fillStyle='#f4f7f2';ctx.fillRect(0,0,W,H);
+  const g=ctx.createLinearGradient(0,0,W,80);g.addColorStop(0,'#0f4024');g.addColorStop(1,'#1a6b3c');
+  ctx.fillStyle=g;ctx.fillRect(0,0,W,80);
+  ctx.fillStyle='white';ctx.font='bold 26px Georgia,serif';ctx.fillText('⛳ Golf de Bresson',20,38);
+  ctx.font='14px sans-serif';ctx.fillStyle='rgba(255,255,255,.8)';
+  ctx.fillText('Départs Jaunes · Stableford + Best Ball · '+hp+'/18',20,60);
+  ranked.forEach((r,rank)=>{
+    const y=90+rank*80;
+    ctx.fillStyle='white';roundRect(ctx,14,y,W-28,66,10);ctx.fill();
+    ctx.fillStyle=r.p.color;roundRect(ctx,14,y,5,66,3);ctx.fill();
+    ctx.font='30px serif';ctx.fillText(medals[rank],28,y+42);
+    ctx.fillStyle=r.p.color;ctx.font='bold 20px Georgia,serif';ctx.fillText(r.p.name,72,y+28);
+    ctx.fillStyle='#5a7060';ctx.font='13px sans-serif';ctx.fillText('Hcp '+r.p.shots,72,y+50);
+    ctx.textAlign='right';
+    ctx.fillStyle='#1a6b3c';ctx.font='bold 26px sans-serif';ctx.fillText(r.stbl+' pts',W-18,y+32);
+    ctx.fillStyle='#5a7060';ctx.font='13px sans-serif';ctx.fillText('brut '+(r.gross!==null?r.gross:'—'),W-18,y+52);
+    ctx.textAlign='left';
+  });
+  ctx.fillStyle='#5a7060';ctx.font='13px sans-serif';ctx.textAlign='center';
+  ctx.fillText('🏌️ Bonne partie !',W/2,H-12);ctx.textAlign='left';
+  const a=document.createElement('a');
+  a.download='golf-bresson-'+new Date().toISOString().slice(0,10)+'.png';
+  a.href=canvas.toDataURL('image/png');a.click();
+}
+function roundRect(ctx,x,y,w,h,r){
+  ctx.beginPath();ctx.moveTo(x+r,y);
+  ctx.lineTo(x+w-r,y);ctx.quadraticCurveTo(x+w,y,x+w,y+r);
+  ctx.lineTo(x+w,y+h-r);ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);
+  ctx.lineTo(x+r,y+h);ctx.quadraticCurveTo(x,y+h,x,y+h-r);
+  ctx.lineTo(x,y+r);ctx.quadraticCurveTo(x,y,x+r,y);ctx.closePath();
+}
+
+// ── HISTORIQUE ───────────────────────────────────────────
+function sauvegarderPartie(){
+  const {wins,halved}=getBBTotals();
+  const hist=JSON.parse(localStorage.getItem('golfBressonHist')||'[]');
+  const ranked=PLAYERS.map((p,i)=>({name:p.name,color:p.color,index:p.index,shots:p.shots,stbl:getTotalStbl(i),gross:getTotalGross(i)})).sort((a,b)=>b.stbl-a.stbl);
+  const holesPlayed=scores[0].filter(s=>s!==null).length;
+  hist.unshift({date:currentDate,dateTs:Date.now(),holesPlayed,ranked,scores:JSON.parse(JSON.stringify(scores))});
+  localStorage.setItem('golfBressonHist',JSON.stringify(hist.slice(0,20)));
+  alert('✅ Partie sauvegardée !');
+}
+function renderHistorique(){
+  const hist=JSON.parse(localStorage.getItem('golfBressonHist')||'[]');
+  if(!hist.length){document.getElementById('histContent').innerHTML=`<div class="empty-hist">📋<br><br>Aucune partie sauvegardée.<br><br>Appuyez sur "Sauvegarder" dans l'onglet Fin 🏁</div>`;return;}
+  const medals=['🥇','🥈','🥉','4️⃣'];
+  let html='';
+  hist.forEach((p,idx)=>{
+    const w=p.ranked[0];
+    const str=p.ranked.map((r,i)=>`${medals[i]} ${r.name} ${r.stbl}pts`).join(' · ');
+    html+=`<div class="hist-card" onclick="showHistDetail(${idx})">
+      <div class="hist-date">📅 ${p.date} · ${p.holesPlayed}/18 trous</div>
+      <div class="hist-winner">🏆 ${w.name} — ${w.stbl} pts</div>
+      <div class="hist-scores">${str}</div>
+    </div>`;
+  });
+  html+=`<div style="text-align:center;margin-top:10px"><button onclick="clearHistorique()" style="background:none;border:1px solid var(--border);border-radius:10px;padding:7px 16px;font-size:13px;font-family:sans-serif;color:var(--muted);cursor:pointer">🗑️ Effacer l'historique</button></div>`;
+  document.getElementById('histContent').innerHTML=html;
+}
+function showHistDetail(idx){
+  const hist=JSON.parse(localStorage.getItem('golfBressonHist')||'[]');
+  const p=hist[idx];const medals=['🥇','🥈','🥉','4️⃣'];
+  document.getElementById('histModalTitle').textContent=p.date;
+  let html='';
+  p.ranked.forEach((r,rank)=>{
+    html+=`<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--bg)">
+      <div style="display:flex;align-items:center;gap:8px"><span style="font-size:20px">${medals[rank]}</span><span style="font-size:17px;font-weight:bold;color:${r.color}">${r.name}</span></div>
+      <div style="text-align:right">
+        <div style="font-size:20px;font-weight:bold;color:var(--green)">${r.stbl} pts</div>
+        <div style="font-size:12px;font-family:sans-serif;color:var(--muted)">brut ${r.gross!==null?r.gross:'—'}</div>
+      </div>
+    </div>`;
+  });
+  document.getElementById('histModalContent').innerHTML=html;
+  document.getElementById('histModal').classList.add('open');
+}
+function closeModal(){document.getElementById('histModal').classList.remove('open')}
+function clearHistorique(){if(confirm('Effacer tout l\'historique ?')){localStorage.removeItem('golfBressonHist');renderHistorique();}}
+
+function showTab(name,el){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById(name).classList.add('active');
+  if(el)el.classList.add('active');
+  if(name==='classement')renderClassement();
+  if(name==='detail')renderDetail();
+  if(name==='fin')renderFin();
+  if(name==='historique')renderHistorique();
+}
+function confirmReset(){
+  if(confirm('Démarrer une nouvelle partie ?')){
+    scores=PLAYERS.map(()=>new Array(18).fill(null));
+    currentDate=new Date().toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+    currentHole=0;save();renderSaisie();
+    showTab('saisie',document.querySelector('.tab'));
+  }
+}
+
+// Init
+document.getElementById('headerDate').textContent=currentDate+' · Par 73';
+renderSaisie();
+</script>
+</body>
+</html>
